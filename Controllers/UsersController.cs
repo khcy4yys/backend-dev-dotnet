@@ -12,9 +12,31 @@ public class UsersController : ControllerBase
 	private static int nextId;
 
 	[HttpGet]
-	public ActionResult<IEnumerable<User>> GetAll()
+	public ActionResult<PagedResult<User>> GetAll([FromQuery] UserListQuery query)
 	{
-		return Ok(Users.Values.OrderBy(user => user.Id));
+		var filteredUsers = Users.Values.AsEnumerable();
+
+		if (!string.IsNullOrWhiteSpace(query.Name))
+		{
+			filteredUsers = filteredUsers.Where(user => user.Name.Contains(query.Name, StringComparison.OrdinalIgnoreCase));
+		}
+
+		if (!string.IsNullOrWhiteSpace(query.Email))
+		{
+			filteredUsers = filteredUsers.Where(user => user.Email.Contains(query.Email, StringComparison.OrdinalIgnoreCase));
+		}
+
+		if (!string.IsNullOrWhiteSpace(query.Department))
+		{
+			filteredUsers = filteredUsers.Where(user => user.Department.Contains(query.Department, StringComparison.OrdinalIgnoreCase));
+		}
+
+		var orderedUsers = filteredUsers.OrderBy(user => user.Id).ToArray();
+		var skip = Math.Min((long)(query.Page - 1) * query.PageSize, int.MaxValue);
+		var pageItems = orderedUsers.Skip((int)skip).Take(query.PageSize).ToArray();
+		var result = new PagedResult<User>(query.Page, query.PageSize, orderedUsers.Length, pageItems);
+
+		return Ok(result);
 	}
 
 	[HttpGet("{id:int}")]
@@ -24,8 +46,18 @@ public class UsersController : ControllerBase
 	}
 
 	[HttpPost]
-	public ActionResult<User> Create(User user)
+	public ActionResult<User> Create(User? user)
 	{
+		if (user is null)
+		{
+			return BadRequest(new ProblemDetails
+			{
+				Status = StatusCodes.Status400BadRequest,
+				Title = "Invalid request body",
+				Detail = "A user payload is required."
+			});
+		}
+
 		var createdUser = new User
 		{
 			Id = Interlocked.Increment(ref nextId),
@@ -39,8 +71,18 @@ public class UsersController : ControllerBase
 	}
 
 	[HttpPut("{id:int}")]
-	public IActionResult Update(int id, User user)
+	public IActionResult Update(int id, User? user)
 	{
+		if (user is null)
+		{
+			return BadRequest(new ProblemDetails
+			{
+				Status = StatusCodes.Status400BadRequest,
+				Title = "Invalid request body",
+				Detail = "A user payload is required."
+			});
+		}
+
 		if (!Users.TryGetValue(id, out var existingUser))
 		{
 			return NotFound();

@@ -4,3 +4,8 @@ GET {{UserManagementAPI_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+GET {{UserManagementAPI_HostAddress}}/api/users?page=1&pageSize=20&department=Engineering
+Accept: application/json
+
+###
